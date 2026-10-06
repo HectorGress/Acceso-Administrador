@@ -6,6 +6,22 @@ import { auth } from '@/lib/firebase'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
 import { createClient } from '@/lib/supabase'
 
+// El título del reporte se guarda como primera línea de descripcion_problema
+// (la tabla "reportes" no tiene columna "titulo")
+const getTituloReporte = (rep: any) => {
+  if (rep.titulo) return rep.titulo
+  const desc: string = rep.descripcion_problema || rep.descripcion || ''
+  if (desc.includes('\n')) return desc.split('\n')[0]
+  return 'Reporte de soporte'
+}
+
+const getDescripcionReporte = (rep: any) => {
+  const desc: string = rep.descripcion_problema || rep.descripcion || ''
+  if (rep.titulo) return desc
+  if (desc.includes('\n')) return desc.split('\n').slice(1).join('\n')
+  return desc
+}
+
 export default function ClienteDashboard() {
   const [user, setUser] = useState<any>(null)
   const [catalogo, setCatalogo] = useState<any[]>([])
@@ -65,16 +81,17 @@ export default function ClienteDashboard() {
     setEnviando(true)
     setMsg('')
 
+    // Solo columnas que existen en la tabla "reportes":
+    // nombre_cliente, correo_cuenta, contrasena_cuenta, descripcion_problema,
+    // perfil, pin, estatus, estado, usuario_id
+    // El título se guarda como primera línea de descripcion_problema.
     const payloadReporte: any = {
       nombre_cliente: nombreCliente || user?.email?.split('@')[0] || 'Cliente',
       correo_cuenta: correoCuenta,
       contrasena_cuenta: contrasenaCuenta || null,
-      perfil_asignado: perfil || null,
       perfil: perfil || null,
-      pin_perfil: pin || null,
       pin: pin || null,
-      descripcion_problema: descripcion,
-      descripcion: descripcion,
+      descripcion_problema: `${titulo}\n${descripcion}`,
       estatus: 'Pendiente',
       estado: 'pendiente'
     }
@@ -368,11 +385,11 @@ export default function ClienteDashboard() {
                     darkMode ? 'bg-[#1a1f2e] border-slate-800' : 'bg-slate-50 border-slate-200'
                   }`}>
                     <div className="space-y-1">
-                      <h4 className="font-bold text-sm text-purple-400">{rep.titulo}</h4>
+                      <h4 className="font-bold text-sm text-purple-400">{getTituloReporte(rep)}</h4>
                       <p className="text-xs text-amber-500 font-mono">
-                        Cuenta: {rep.correo_cuenta} {(rep.perfil_asignado || rep.perfil) && `| Perfil: ${rep.perfil_asignado || rep.perfil}`} {(rep.pin_perfil || rep.pin) && `(PIN: ${rep.pin_perfil || rep.pin})`}
+                        Cuenta: {rep.correo_cuenta} {(rep.perfil || rep.perfil_asignado) && `| Perfil: ${rep.perfil || rep.perfil_asignado}`} {(rep.pin || rep.pin_perfil) && `(PIN: ${rep.pin || rep.pin_perfil})`}
                       </p>
-                      <p className="text-xs text-slate-300 mt-1">{rep.descripcion_problema || rep.descripcion}</p>
+                      <p className="text-xs text-slate-300 mt-1">{getDescripcionReporte(rep)}</p>
 
                       {rep.solucion && (
                         <div className="p-2.5 bg-purple-500/10 border border-purple-500/30 rounded-lg text-xs text-purple-300 mt-2">

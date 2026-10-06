@@ -6,6 +6,30 @@ import { auth } from '@/lib/firebase'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
 import { createClient } from '@/lib/supabase'
 
+// Fecha local de hoy en formato YYYY-MM-DD
+const hoyISO = () => {
+  const d = new Date()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${mm}-${dd}`
+}
+
+// El título del reporte se guarda como primera línea de descripcion_problema
+// (la tabla "reportes" no tiene columna "titulo")
+const getTituloReporte = (rep: any) => {
+  if (rep.titulo) return rep.titulo
+  const desc: string = rep.descripcion_problema || rep.descripcion || ''
+  if (desc.includes('\n')) return desc.split('\n')[0]
+  return 'Reporte de soporte'
+}
+
+const getDescripcionReporte = (rep: any) => {
+  const desc: string = rep.descripcion_problema || rep.descripcion || ''
+  if (rep.titulo) return desc
+  if (desc.includes('\n')) return desc.split('\n').slice(1).join('\n')
+  return desc
+}
+
 export default function AdminDashboard() {
   const [tab, setTab] = useState<'clientes' | 'madres' | 'precios' | 'reportes'>('clientes')
   const [loading, setLoading] = useState(true)
@@ -101,6 +125,8 @@ export default function AdminDashboard() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    let error: any = null
     
     if (tab === 'clientes') {
       const payload: any = {}
@@ -110,18 +136,21 @@ export default function AdminDashboard() {
       if (formData.pin_perfil) payload.pin_perfil = formData.pin_perfil
       if (formData.correo_cuenta) payload.correo_cuenta = formData.correo_cuenta
       if (formData.contrasena_cuenta) payload.contrasena_cuenta = formData.contrasena_cuenta
-      if (formData.fecha_adquisicion) payload.fecha_adquisicion = formData.fecha_adquisicion
+      // fecha_adquisicion es NOT NULL en la tabla: si no hay, se usa la fecha de hoy
+      payload.fecha_adquisicion = formData.fecha_adquisicion || hoyISO()
       if (formData.fecha_vencimiento) payload.fecha_vencimiento = formData.fecha_vencimiento
-      if (formData.precio_suscripcion && !isNaN(Number(formData.precio_suscripcion))) {
+      if (formData.precio_suscripcion !== '' && formData.precio_suscripcion != null && !isNaN(Number(formData.precio_suscripcion))) {
         payload.precio_suscripcion = Number(formData.precio_suscripcion)
       }
       if (formData.correo) payload.correo = formData.correo
       if (formData.contrasena) payload.contrasena = formData.contrasena
 
       if (editingItem?.id) {
-        await supabase.from('cuentas_clientes').update(payload).eq('id', editingItem.id)
+        const res = await supabase.from('cuentas_clientes').update(payload).eq('id', editingItem.id)
+        error = res.error
       } else {
-        await supabase.from('cuentas_clientes').insert([payload])
+        const res = await supabase.from('cuentas_clientes').insert([payload])
+        error = res.error
       }
     } else if (tab === 'madres') {
       const payload: any = {}
@@ -130,13 +159,15 @@ export default function AdminDashboard() {
       if (formData.servicio) payload.servicio = formData.servicio
       if (formData.correo) payload.correo = formData.correo
       if (formData.contrasena) payload.contrasena = formData.contrasena
-      if (formData.fecha_adquisicion) payload.fecha_adquisicion = formData.fecha_adquisicion
+      payload.fecha_adquisicion = formData.fecha_adquisicion || hoyISO()
       if (formData.fecha_vencimiento) payload.fecha_vencimiento = formData.fecha_vencimiento
 
       if (editingItem?.id) {
-        await supabase.from('cuentas_madre').update(payload).eq('id', editingItem.id)
+        const res = await supabase.from('cuentas_madre').update(payload).eq('id', editingItem.id)
+        error = res.error
       } else {
-        await supabase.from('cuentas_madre').insert([payload])
+        const res = await supabase.from('cuentas_madre').insert([payload])
+        error = res.error
       }
     } else if (tab === 'precios') {
       const payload: any = {
@@ -147,10 +178,20 @@ export default function AdminDashboard() {
       }
 
       if (editingItem?.id) {
-        await supabase.from('servicios_catalogo').update(payload).eq('id', editingItem.id)
+        const res = await supabase.from('servicios_catalogo').update(payload).eq('id', editingItem.id)
+        error = res.error
       } else {
-        await supabase.from('servicios_catalogo').insert([payload])
+        // El panel de cliente filtra por activo = true
+        payload.activo = true
+        const res = await supabase.from('servicios_catalogo').insert([payload])
+        error = res.error
       }
+    }
+
+    if (error) {
+      console.error('Error al guardar:', error)
+      alert(`❌ Error al guardar: ${error.message}`)
+      return
     }
 
     setIsModalOpen(false)
@@ -161,7 +202,8 @@ export default function AdminDashboard() {
 
   const handleDelete = async (table: string, id: any) => {
     if (confirm('¿Deseas eliminar este registro?')) {
-      await supabase.from(table).delete().eq('id', id)
+      const { error } = await supabase.from(table).delete().eq('id', id)
+      if (error) alert(`❌ Error al eliminar: ${error.message}`)
       await loadAllData()
     }
   }
@@ -169,11 +211,14 @@ export default function AdminDashboard() {
   const handleUpdateReporteStatus = async (id: any, nuevoEstatus: string) => {
     const mensajeSolucion = solucionesInput[id] || ''
     
-    await supabase.from('reportes').update({ 
+    const { error } = await supabase.from('reportes').update({ 
       estatus: nuevoEstatus,
       estado: nuevoEstatus.toLowerCase(),
+      atendido: nuevoEstatus === 'Resuelto',
       solucion: mensajeSolucion 
     }).eq('id', id)
+
+    if (error) alert(`❌ Error al actualizar reporte: ${error.message}`)
 
     await loadAllData()
   }
@@ -279,7 +324,7 @@ export default function AdminDashboard() {
 
         {tab !== 'reportes' && (
           <button
-            onClick={() => { setEditingItem(null); setFormData({}); setIsModalOpen(true); }}
+            onClick={() => { setEditingItem(null); setFormData({ fecha_adquisicion: hoyISO() }); setIsModalOpen(true); }}
             className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-purple-600/20"
           >
             + Crear Registro
@@ -435,7 +480,7 @@ export default function AdminDashboard() {
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-base text-purple-500">{rep.titulo}</span>
+                        <span className="font-bold text-base text-purple-500">{getTituloReporte(rep)}</span>
                         <span className={`text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full border ${
                           estatusActual === 'resuelto' ? 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30' :
                           estatusActual === 'en proceso' ? 'bg-amber-500/20 text-amber-500 border-amber-500/30' :
@@ -465,10 +510,10 @@ export default function AdminDashboard() {
                   <div className={`p-3 rounded-xl border text-xs space-y-2 ${darkMode ? 'bg-[#121622] border-slate-800 text-slate-300' : 'bg-white border-slate-200 text-slate-700'}`}>
                     <div className="grid sm:grid-cols-3 gap-2 font-mono text-[11px] pb-2 border-b border-slate-700/40">
                       <p><strong>Contraseña:</strong> {rep.contrasena_cuenta || 'N/A'}</p>
-                      <p><strong>Perfil:</strong> {rep.perfil_asignado || rep.perfil || 'N/A'}</p>
-                      <p><strong>PIN:</strong> {rep.pin_perfil || rep.pin || 'N/A'}</p>
+                      <p><strong>Perfil:</strong> {rep.perfil || rep.perfil_asignado || 'N/A'}</p>
+                      <p><strong>PIN:</strong> {rep.pin || rep.pin_perfil || 'N/A'}</p>
                     </div>
-                    <p><strong>Falla Reportada:</strong> {rep.descripcion_problema || rep.descripcion}</p>
+                    <p><strong>Falla Reportada:</strong> {getDescripcionReporte(rep)}</p>
 
                     <div className="pt-2 border-t border-slate-700/40 space-y-1">
                       <label className="block text-[11px] font-bold text-purple-400">💬 Mensaje / Indicaciones para el Cliente:</label>
@@ -501,29 +546,31 @@ export default function AdminDashboard() {
             <form onSubmit={handleSave} className="space-y-3 text-xs">
               {tab === 'clientes' && (
                 <>
-                  <input type="text" placeholder="Nombre Completo" value={formData.nombre_completo || ''} onChange={(e) => setFormData({...formData, nombre_completo: e.target.value})} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-[#1a1f2e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
-                  <input type="email" placeholder="Correo de la Cuenta" value={formData.correo_cuenta || ''} onChange={(e) => setFormData({...formData, correo_cuenta: e.target.value})} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-[#1a1f2e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
-                  <input type="text" placeholder="Contraseña de la Cuenta" value={formData.contrasena_cuenta || ''} onChange={(e) => setFormData({...formData, contrasena_cuenta: e.target.value})} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-[#1a1f2e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
-                  <input type="text" placeholder="Servicio (ej. Disney+)" value={formData.servicio || ''} onChange={(e) => setFormData({...formData, servicio: e.target.value})} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-[#1a1f2e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
+                  <input type="text" required placeholder="Nombre Completo" value={formData.nombre_completo || ''} onChange={(e) => setFormData({...formData, nombre_completo: e.target.value})} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-[#1a1f2e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
+                  <input type="email" required placeholder="Correo de la Cuenta" value={formData.correo_cuenta || ''} onChange={(e) => setFormData({...formData, correo_cuenta: e.target.value})} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-[#1a1f2e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
+                  <input type="text" required placeholder="Contraseña de la Cuenta" value={formData.contrasena_cuenta || ''} onChange={(e) => setFormData({...formData, contrasena_cuenta: e.target.value})} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-[#1a1f2e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
+                  <input type="text" required placeholder="Servicio (ej. Disney+)" value={formData.servicio || ''} onChange={(e) => setFormData({...formData, servicio: e.target.value})} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-[#1a1f2e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
                   <input type="text" placeholder="Perfil Asignado" value={formData.perfil_asignado || ''} onChange={(e) => setFormData({...formData, perfil_asignado: e.target.value})} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-[#1a1f2e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
                   <input type="text" placeholder="PIN de Perfil" value={formData.pin_perfil || ''} onChange={(e) => setFormData({...formData, pin_perfil: e.target.value})} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-[#1a1f2e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
-                  <input type="number" placeholder="Precio Suscripción MXN" value={formData.precio_suscripcion || ''} onChange={(e) => setFormData({...formData, precio_suscripcion: e.target.value})} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-[#1a1f2e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
+                  <input type="number" placeholder="Precio Suscripción MXN" value={formData.precio_suscripcion ?? ''} onChange={(e) => setFormData({...formData, precio_suscripcion: e.target.value})} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-[#1a1f2e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
+                  <label className="block text-slate-400">Fecha Adquisición:</label>
+                  <input type="date" required value={formData.fecha_adquisicion || ''} onChange={(e) => setFormData({...formData, fecha_adquisicion: e.target.value})} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-[#1a1f2e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
                   <label className="block text-slate-400">Fecha Vencimiento:</label>
-                  <input type="date" value={formData.fecha_vencimiento || ''} onChange={(e) => setFormData({...formData, fecha_vencimiento: e.target.value})} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-[#1a1f2e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
+                  <input type="date" required value={formData.fecha_vencimiento || ''} onChange={(e) => setFormData({...formData, fecha_vencimiento: e.target.value})} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-[#1a1f2e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
                 </>
               )}
 
               {tab === 'madres' && (
                 <>
-                  <input type="text" placeholder="Proveedor" value={formData.proveedor || ''} onChange={(e) => setFormData({...formData, proveedor: e.target.value})} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-[#1a1f2e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
+                  <input type="text" required placeholder="Proveedor" value={formData.proveedor || ''} onChange={(e) => setFormData({...formData, proveedor: e.target.value})} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-[#1a1f2e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
                   <input type="text" placeholder="Código Panel" value={formData.codigo_panel || ''} onChange={(e) => setFormData({...formData, codigo_panel: e.target.value})} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-[#1a1f2e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
-                  <input type="text" placeholder="Servicio" value={formData.servicio || ''} onChange={(e) => setFormData({...formData, servicio: e.target.value})} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-[#1a1f2e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
-                  <input type="email" placeholder="Correo" value={formData.correo || ''} onChange={(e) => setFormData({...formData, correo: e.target.value})} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-[#1a1f2e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
-                  <input type="text" placeholder="Contraseña" value={formData.contrasena || ''} onChange={(e) => setFormData({...formData, contrasena: e.target.value})} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-[#1a1f2e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
+                  <input type="text" required placeholder="Servicio" value={formData.servicio || ''} onChange={(e) => setFormData({...formData, servicio: e.target.value})} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-[#1a1f2e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
+                  <input type="email" required placeholder="Correo" value={formData.correo || ''} onChange={(e) => setFormData({...formData, correo: e.target.value})} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-[#1a1f2e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
+                  <input type="text" required placeholder="Contraseña" value={formData.contrasena || ''} onChange={(e) => setFormData({...formData, contrasena: e.target.value})} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-[#1a1f2e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
                   <label className="block text-slate-400">Fecha Adquisición:</label>
-                  <input type="date" value={formData.fecha_adquisicion || ''} onChange={(e) => setFormData({...formData, fecha_adquisicion: e.target.value})} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-[#1a1f2e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
+                  <input type="date" required value={formData.fecha_adquisicion || ''} onChange={(e) => setFormData({...formData, fecha_adquisicion: e.target.value})} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-[#1a1f2e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
                   <label className="block text-slate-400">Fecha Vencimiento:</label>
-                  <input type="date" value={formData.fecha_vencimiento || ''} onChange={(e) => setFormData({...formData, fecha_vencimiento: e.target.value})} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-[#1a1f2e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
+                  <input type="date" required value={formData.fecha_vencimiento || ''} onChange={(e) => setFormData({...formData, fecha_vencimiento: e.target.value})} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-[#1a1f2e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
                 </>
               )}
 
