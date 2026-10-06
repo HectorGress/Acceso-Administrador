@@ -65,19 +65,25 @@ export default function ClienteDashboard() {
     setEnviando(true)
     setMsg('')
 
-    const { error } = await supabase.from('reportes').insert([
-      {
-        usuario_id: user?.uid,
-        nombre_cliente: nombreCliente || user?.email?.split('@')[0],
-        titulo,
-        correo_cuenta: correoCuenta,
-        contrasena_cuenta: contrasenaCuenta,
-        perfil_asignado: perfil,
-        pin_perfil: pin,
-        descripcion,
-        estatus: 'Pendiente'
-      }
-    ])
+    const payloadReporte: any = {
+      nombre_cliente: nombreCliente || user?.email?.split('@')[0] || 'Cliente',
+      correo_cuenta: correoCuenta,
+      contrasena_cuenta: contrasenaCuenta || null,
+      perfil_asignado: perfil || null,
+      perfil: perfil || null,
+      pin_perfil: pin || null,
+      pin: pin || null,
+      descripcion_problema: descripcion,
+      descripcion: descripcion,
+      estatus: 'Pendiente',
+      estado: 'pendiente'
+    }
+
+    if (user?.uid) {
+      payloadReporte.usuario_id = user.uid
+    }
+
+    const { error } = await supabase.from('reportes').insert([payloadReporte])
 
     if (!error) {
       setMsg('✅ Reporte enviado con éxito. Puedes consultar su avance abajo.')
@@ -364,9 +370,9 @@ export default function ClienteDashboard() {
                     <div className="space-y-1">
                       <h4 className="font-bold text-sm text-purple-400">{rep.titulo}</h4>
                       <p className="text-xs text-amber-500 font-mono">
-                        Cuenta: {rep.correo_cuenta} {rep.perfil_asignado && `| Perfil: ${rep.perfil_asignado}`} {rep.pin_perfil && `(PIN: ${rep.pin_perfil})`}
+                        Cuenta: {rep.correo_cuenta} {(rep.perfil_asignado || rep.perfil) && `| Perfil: ${rep.perfil_asignado || rep.perfil}`} {(rep.pin_perfil || rep.pin) && `(PIN: ${rep.pin_perfil || rep.pin})`}
                       </p>
-                      <p className="text-xs text-slate-300 mt-1">{rep.descripcion}</p>
+                      <p className="text-xs text-slate-300 mt-1">{rep.descripcion_problema || rep.descripcion}</p>
 
                       {rep.solucion && (
                         <div className="p-2.5 bg-purple-500/10 border border-purple-500/30 rounded-lg text-xs text-purple-300 mt-2">

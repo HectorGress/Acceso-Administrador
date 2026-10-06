@@ -103,51 +103,50 @@ export default function AdminDashboard() {
     e.preventDefault()
     
     if (tab === 'clientes') {
-      const payload: any = {
-        nombre_completo: formData.nombre_completo || null,
-        correo_cuenta: formData.correo_cuenta || null,
-        contrasena_cuenta: formData.contrasena_cuenta || null,
-        servicio: formData.servicio || null,
-        perfil_asignado: formData.perfil_asignado || null,
-        pin_perfil: formData.pin_perfil || null,
-        precio_suscripcion: formData.precio_suscripcion ? Number(formData.precio_suscripcion) : null,
-        fecha_vencimiento: formData.fecha_vencimiento || null,
-        fecha_adquisicion: formData.fecha_adquisicion || null,
-        correo: formData.correo || null,
-        contrasena: formData.contrasena || null
+      const payload: any = {}
+      if (formData.nombre_completo) payload.nombre_completo = formData.nombre_completo
+      if (formData.servicio) payload.servicio = formData.servicio
+      if (formData.perfil_asignado) payload.perfil_asignado = formData.perfil_asignado
+      if (formData.pin_perfil) payload.pin_perfil = formData.pin_perfil
+      if (formData.correo_cuenta) payload.correo_cuenta = formData.correo_cuenta
+      if (formData.contrasena_cuenta) payload.contrasena_cuenta = formData.contrasena_cuenta
+      if (formData.fecha_adquisicion) payload.fecha_adquisicion = formData.fecha_adquisicion
+      if (formData.fecha_vencimiento) payload.fecha_vencimiento = formData.fecha_vencimiento
+      if (formData.precio_suscripcion && !isNaN(Number(formData.precio_suscripcion))) {
+        payload.precio_suscripcion = Number(formData.precio_suscripcion)
       }
+      if (formData.correo) payload.correo = formData.correo
+      if (formData.contrasena) payload.contrasena = formData.contrasena
 
-      if (editingItem) {
+      if (editingItem?.id) {
         await supabase.from('cuentas_clientes').update(payload).eq('id', editingItem.id)
       } else {
         await supabase.from('cuentas_clientes').insert([payload])
       }
     } else if (tab === 'madres') {
-      const payload: any = {
-        proveedor: formData.proveedor || null,
-        codigo_panel: formData.codigo_panel || null,
-        servicio: formData.servicio || null,
-        correo: formData.correo || null,
-        contrasena: formData.contrasena || null,
-        fecha_adquisicion: formData.fecha_adquisicion || null,
-        fecha_vencimiento: formData.fecha_vencimiento || null
-      }
+      const payload: any = {}
+      if (formData.proveedor) payload.proveedor = formData.proveedor
+      if (formData.codigo_panel) payload.codigo_panel = formData.codigo_panel
+      if (formData.servicio) payload.servicio = formData.servicio
+      if (formData.correo) payload.correo = formData.correo
+      if (formData.contrasena) payload.contrasena = formData.contrasena
+      if (formData.fecha_adquisicion) payload.fecha_adquisicion = formData.fecha_adquisicion
+      if (formData.fecha_vencimiento) payload.fecha_vencimiento = formData.fecha_vencimiento
 
-      if (editingItem) {
+      if (editingItem?.id) {
         await supabase.from('cuentas_madre').update(payload).eq('id', editingItem.id)
       } else {
         await supabase.from('cuentas_madre').insert([payload])
       }
     } else if (tab === 'precios') {
       const payload: any = {
-        nombre: formData.nombre || formData.servicio || null,
-        servicio: formData.servicio || formData.nombre || null,
+        nombre: formData.nombre || formData.servicio || 'Servicio',
         categoria: formData.categoria || 'perfil',
         precio: formData.precio ? Number(formData.precio) : 0,
-        descripcion: formData.descripcion || null
+        descripcion: formData.descripcion || ''
       }
 
-      if (editingItem) {
+      if (editingItem?.id) {
         await supabase.from('servicios_catalogo').update(payload).eq('id', editingItem.id)
       } else {
         await supabase.from('servicios_catalogo').insert([payload])
@@ -172,6 +171,7 @@ export default function AdminDashboard() {
     
     await supabase.from('reportes').update({ 
       estatus: nuevoEstatus,
+      estado: nuevoEstatus.toLowerCase(),
       solucion: mensajeSolucion 
     }).eq('id', id)
 
@@ -189,7 +189,7 @@ export default function AdminDashboard() {
 
       let matchServicio = false
       if (selectedServicio === 'Max / HBO Max') {
-        matchServicio = servLower.includes('max') || servLower.includes('hbo')
+        matchServicio = servLower.includes('max') || servLower.includes('hbo') || servLower.includes('máximo')
       } else if (selectedServicio === 'Disney+') {
         matchServicio = servLower.includes('disney')
       } else if (selectedServicio === 'Prime Video') {
@@ -404,7 +404,7 @@ export default function AdminDashboard() {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-sm">{s.nombre || s.servicio}</span>
-                    <span className="text-[9px] uppercase px-2 py-0.5 rounded bg-purple-600/20 text-purple-500 font-bold">{s.categoria || s.tipo || 'General'}</span>
+                    <span className="text-[9px] uppercase px-2 py-0.5 rounded bg-purple-600/20 text-purple-500 font-bold">{s.categoria || 'General'}</span>
                   </div>
                   <p className={`text-xs mt-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{s.descripcion}</p>
                   <p className="text-lg font-extrabold text-amber-500 mt-2">${s.precio} MXN</p>
@@ -423,7 +423,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* MÓDULO: Reportes con Nombre del Cliente y Mensaje de Solución */}
+      {/* MÓDULO: Reportes */}
       {tab === 'reportes' && (
         <div className={`border rounded-2xl p-4 sm:p-5 space-y-4 ${darkMode ? 'bg-[#121622] border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
           <h2 className="font-bold text-sm text-purple-500">Módulo de Atención de Soporte</h2>
@@ -468,7 +468,7 @@ export default function AdminDashboard() {
                       <p><strong>Perfil:</strong> {rep.perfil_asignado || rep.perfil || 'N/A'}</p>
                       <p><strong>PIN:</strong> {rep.pin_perfil || rep.pin || 'N/A'}</p>
                     </div>
-                    <p><strong>Falla Reportada:</strong> {rep.descripcion}</p>
+                    <p><strong>Falla Reportada:</strong> {rep.descripcion_problema || rep.descripcion}</p>
 
                     <div className="pt-2 border-t border-slate-700/40 space-y-1">
                       <label className="block text-[11px] font-bold text-purple-400">💬 Mensaje / Indicaciones para el Cliente:</label>
@@ -507,7 +507,7 @@ export default function AdminDashboard() {
                   <input type="text" placeholder="Servicio (ej. Disney+)" value={formData.servicio || ''} onChange={(e) => setFormData({...formData, servicio: e.target.value})} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-[#1a1f2e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
                   <input type="text" placeholder="Perfil Asignado" value={formData.perfil_asignado || ''} onChange={(e) => setFormData({...formData, perfil_asignado: e.target.value})} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-[#1a1f2e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
                   <input type="text" placeholder="PIN de Perfil" value={formData.pin_perfil || ''} onChange={(e) => setFormData({...formData, pin_perfil: e.target.value})} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-[#1a1f2e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
-                  <input type="number" placeholder="Precio Suscripción MXN" value={formData.precio_suscripcion || ''} onChange={(e) => setFormData({...formData, precio_suscripcion: parseFloat(e.target.value)})} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-[#1a1f2e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
+                  <input type="number" placeholder="Precio Suscripción MXN" value={formData.precio_suscripcion || ''} onChange={(e) => setFormData({...formData, precio_suscripcion: e.target.value})} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-[#1a1f2e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
                   <label className="block text-slate-400">Fecha Vencimiento:</label>
                   <input type="date" value={formData.fecha_vencimiento || ''} onChange={(e) => setFormData({...formData, fecha_vencimiento: e.target.value})} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-[#1a1f2e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
                 </>
