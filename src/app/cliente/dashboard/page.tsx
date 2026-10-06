@@ -368,7 +368,6 @@ export default function ClienteDashboard() {
                       </p>
                       <p className="text-xs text-slate-300 mt-1">{rep.descripcion}</p>
 
-                      {/* Mostrar Respuesta / Solución del Administrador */}
                       {rep.solucion && (
                         <div className="p-2.5 bg-purple-500/10 border border-purple-500/30 rounded-lg text-xs text-purple-300 mt-2">
                           💡 <strong>Respuesta del Administrador:</strong> {rep.solucion}

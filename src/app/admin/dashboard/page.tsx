@@ -101,12 +101,57 @@ export default function AdminDashboard() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
-    const table = tab === 'clientes' ? 'cuentas_clientes' : tab === 'madres' ? 'cuentas_madre' : 'servicios_catalogo'
+    
+    if (tab === 'clientes') {
+      const payload: any = {
+        nombre_completo: formData.nombre_completo || null,
+        correo_cuenta: formData.correo_cuenta || null,
+        contrasena_cuenta: formData.contrasena_cuenta || null,
+        servicio: formData.servicio || null,
+        perfil_asignado: formData.perfil_asignado || null,
+        pin_perfil: formData.pin_perfil || null,
+        precio_suscripcion: formData.precio_suscripcion ? Number(formData.precio_suscripcion) : null,
+        fecha_vencimiento: formData.fecha_vencimiento || null,
+        fecha_adquisicion: formData.fecha_adquisicion || null,
+        correo: formData.correo || null,
+        contrasena: formData.contrasena || null
+      }
 
-    if (editingItem) {
-      await supabase.from(table).update(formData).eq('id', editingItem.id)
-    } else {
-      await supabase.from(table).insert([formData])
+      if (editingItem) {
+        await supabase.from('cuentas_clientes').update(payload).eq('id', editingItem.id)
+      } else {
+        await supabase.from('cuentas_clientes').insert([payload])
+      }
+    } else if (tab === 'madres') {
+      const payload: any = {
+        proveedor: formData.proveedor || null,
+        codigo_panel: formData.codigo_panel || null,
+        servicio: formData.servicio || null,
+        correo: formData.correo || null,
+        contrasena: formData.contrasena || null,
+        fecha_adquisicion: formData.fecha_adquisicion || null,
+        fecha_vencimiento: formData.fecha_vencimiento || null
+      }
+
+      if (editingItem) {
+        await supabase.from('cuentas_madre').update(payload).eq('id', editingItem.id)
+      } else {
+        await supabase.from('cuentas_madre').insert([payload])
+      }
+    } else if (tab === 'precios') {
+      const payload: any = {
+        nombre: formData.nombre || formData.servicio || null,
+        servicio: formData.servicio || formData.nombre || null,
+        categoria: formData.categoria || 'perfil',
+        precio: formData.precio ? Number(formData.precio) : 0,
+        descripcion: formData.descripcion || null
+      }
+
+      if (editingItem) {
+        await supabase.from('servicios_catalogo').update(payload).eq('id', editingItem.id)
+      } else {
+        await supabase.from('servicios_catalogo').insert([payload])
+      }
     }
 
     setIsModalOpen(false)
@@ -122,7 +167,6 @@ export default function AdminDashboard() {
     }
   }
 
-  // Actualizar estatus y mensaje de solución para el cliente
   const handleUpdateReporteStatus = async (id: any, nuevoEstatus: string) => {
     const mensajeSolucion = solucionesInput[id] || ''
     
@@ -369,7 +413,7 @@ export default function AdminDashboard() {
                   <button onClick={() => { setEditingItem(s); setFormData(s); setIsModalOpen(true); }} className="block w-full text-xs bg-indigo-600/20 border border-indigo-500/30 px-3 py-1.5 rounded-lg text-indigo-500 hover:bg-indigo-600/30 font-bold">
                     Editar
                   </button>
-                  <button onClick={() => handleDelete('servicios_catalogo', s.id)} className="block w-full text-xs bg-red-600/20 border border-red-500/30 px-3 py-1.5 rounded-lg text-red-600/30 font-bold">
+                  <button onClick={() => handleDelete('servicios_catalogo', s.id)} className="block w-full text-xs bg-red-600/20 border border-red-500/30 px-3 py-1.5 rounded-lg text-red-500 hover:bg-red-600/30 font-bold">
                     Eliminar
                   </button>
                 </div>
@@ -426,7 +470,6 @@ export default function AdminDashboard() {
                     </div>
                     <p><strong>Falla Reportada:</strong> {rep.descripcion}</p>
 
-                    {/* Campo para que el Admin envíe indicaciones/solución */}
                     <div className="pt-2 border-t border-slate-700/40 space-y-1">
                       <label className="block text-[11px] font-bold text-purple-400">💬 Mensaje / Indicaciones para el Cliente:</label>
                       <input
