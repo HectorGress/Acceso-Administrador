@@ -8,6 +8,7 @@ import {
   createUserWithEmailAndPassword 
 } from 'firebase/auth'
 import { createClient } from '@/lib/supabase'
+import { ShieldCheck, Mail, Lock, LogIn, UserPlus, Sun, Moon, Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -15,7 +16,8 @@ export default function LoginPage() {
   const [isRegister, setIsRegister] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [loading, setLoading] = useState(false)
-  const [isDarkMode, setIsDarkMode] = useState(true)
+  const [isDarkMode, setIsDarkMode] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   const router = useRouter()
   const supabase = createClient()
@@ -86,106 +88,131 @@ export default function LoginPage() {
     }
   }
 
+  const inputClass = `w-full pl-11 py-3 rounded-xl text-sm border outline-none transition focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 ${
+    isDarkMode
+      ? 'bg-slate-900 border-slate-700 text-slate-100 placeholder-slate-500'
+      : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
+  }`
+
+  const iconClass = `absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`
+
   return (
-    <div className={`min-h-screen flex flex-col justify-center items-center relative p-4 transition-colors duration-300 ${isDarkMode ? 'bg-[#0a0d14] text-white' : 'bg-slate-100 text-slate-900'}`}>
+    <div className={`min-h-screen flex flex-col justify-center items-center relative overflow-hidden p-4 transition-colors duration-300 ${
+      isDarkMode ? 'bg-slate-900 text-slate-100' : 'bg-gradient-to-br from-slate-50 via-indigo-50/60 to-slate-100 text-slate-900'
+    }`}>
+
+      {/* Fondo decorativo suave */}
+      <div className={`pointer-events-none absolute -top-32 -left-32 w-96 h-96 rounded-full blur-3xl ${isDarkMode ? 'bg-indigo-500/10' : 'bg-indigo-200/50'}`} />
+      <div className={`pointer-events-none absolute -bottom-32 -right-32 w-96 h-96 rounded-full blur-3xl ${isDarkMode ? 'bg-blue-500/10' : 'bg-blue-200/50'}`} />
       
       {/* Botón de cambio de tema */}
       <button 
         type="button"
         onClick={() => setIsDarkMode(!isDarkMode)}
-        className="absolute top-6 right-6 px-4 py-2 text-xs font-semibold rounded-full border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 flex items-center gap-2 transition-all shadow-md backdrop-blur-sm"
+        className={`absolute top-5 right-5 px-4 py-2 text-sm font-medium rounded-full border flex items-center gap-2 transition shadow-sm ${
+          isDarkMode
+            ? 'bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700'
+            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+        }`}
       >
-        <span>☀️</span> {isDarkMode ? 'Modo Claro' : 'Modo Oscuro'}
+        {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
+        {isDarkMode ? 'Modo claro' : 'Modo oscuro'}
       </button>
 
-      {/* Contenedor Principal / Tarjeta Neón */}
-      <div className={`w-full max-w-md p-8 rounded-2xl border shadow-2xl backdrop-blur-md transition-all ${
+      {/* Tarjeta principal */}
+      <div className={`relative w-full max-w-md p-8 rounded-2xl border shadow-xl transition-colors ${
         isDarkMode 
-          ? 'bg-[#121622]/90 border-purple-500/20 shadow-purple-900/20' 
-          : 'bg-white border-slate-200 shadow-slate-200'
+          ? 'bg-slate-800/80 border-slate-700 shadow-black/30' 
+          : 'bg-white border-slate-200 shadow-slate-300/50'
       }`}>
         
-        {/* Header con Icono de Escudo */}
+        {/* Header con icono de escudo */}
         <div className="flex flex-col items-center mb-6 text-center">
-          <div className="w-16 h-16 bg-purple-600/10 border border-purple-500/30 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-purple-500/10">
-            <svg className="w-9 h-9 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 bg-gradient-to-br from-indigo-600 to-blue-600 text-white shadow-lg shadow-indigo-600/30">
+            <ShieldCheck size={28} />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-purple-400 to-indigo-300 bg-clip-text text-transparent">
-            {isRegister ? 'Registro de Cliente' : 'Acceso al Sistema'}
+          <h1 className="text-2xl font-bold tracking-tight">
+            {isRegister ? 'Registro de cliente' : 'Acceso al sistema'}
           </h1>
-          <p className="text-xs text-slate-400 mt-1.5 font-medium">
+          <p className={`text-sm mt-1.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
             {isRegister ? 'Crea una cuenta para acceder a tus servicios' : 'Ingresa tus credenciales para continuar'}
           </p>
         </div>
 
-        {/* Banner de Mensaje de Error */}
+        {/* Mensaje de error */}
         {errorMsg && (
-          <div className="mb-5 p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs text-center font-semibold animate-pulse">
-            {errorMsg}
+          <div
+            role="alert"
+            className={`mb-5 p-3 rounded-xl border text-sm flex items-start gap-2 ${
+              isDarkMode ? 'bg-rose-500/10 border-rose-500/30 text-rose-300' : 'bg-rose-50 border-rose-200 text-rose-700'
+            }`}
+          >
+            <AlertCircle size={16} className="shrink-0 mt-0.5" />
+            <span>{errorMsg}</span>
           </div>
         )}
 
         {/* Formulario */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-              Correo Electrónico
+            <label htmlFor="email" className={`block text-sm font-medium mb-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+              Correo electrónico
             </label>
             <div className="relative">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500 text-sm">
-                ✉️
-              </span>
+              <Mail size={18} className={iconClass} />
               <input
+                id="email"
                 type="email"
                 required
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="tu_correo@gmail.com"
-                className={`w-full pl-10 pr-4 py-3 rounded-xl text-sm border focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all ${
-                  isDarkMode 
-                    ? 'bg-[#161b28] border-slate-800 text-white placeholder-slate-600 focus:border-purple-500' 
-                    : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400'
-                }`}
+                className={`${inputClass} pr-4`}
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+            <label htmlFor="password" className={`block text-sm font-medium mb-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
               Contraseña
             </label>
             <div className="relative">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500 text-sm">
-                🔒
-              </span>
+              <Lock size={18} className={iconClass} />
               <input
-                type="password"
+                id="password"
+                type={showPassword ? 'text' : 'password'}
                 required
+                autoComplete={isRegister ? 'new-password' : 'current-password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className={`w-full pl-10 pr-4 py-3 rounded-xl text-sm border focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all ${
-                  isDarkMode 
-                    ? 'bg-[#161b28] border-slate-800 text-white placeholder-slate-600 focus:border-purple-500' 
-                    : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400'
-                }`}
+                className={`${inputClass} pr-11`}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                className={`absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md transition ${
+                  isDarkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-400 hover:text-slate-700'
+                }`}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 px-4 bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-700 hover:from-purple-500 hover:to-indigo-500 text-white text-sm font-semibold rounded-xl shadow-lg shadow-purple-600/25 flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 mt-6"
+            className="w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-sm font-semibold rounded-xl shadow-md shadow-indigo-600/25 flex items-center justify-center gap-2 transition active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed mt-2"
           >
             {loading ? (
-              <span className="animate-pulse">Cargando...</span>
+              <><Loader2 size={18} className="animate-spin" /> Cargando...</>
             ) : isRegister ? (
-              <><span>👤+</span> Crear Cuenta de Cliente</>
+              <><UserPlus size={18} /> Crear cuenta de cliente</>
             ) : (
-              <><span>➔]</span> Iniciar Sesión</>
+              <><LogIn size={18} /> Iniciar sesión</>
             )}
           </button>
         </form>
@@ -198,7 +225,9 @@ export default function LoginPage() {
               setIsRegister(!isRegister)
               setErrorMsg('')
             }}
-            className="text-xs text-purple-400 hover:text-purple-300 font-semibold transition-colors"
+            className={`text-sm font-medium transition-colors ${
+              isDarkMode ? 'text-indigo-300 hover:text-indigo-200' : 'text-indigo-600 hover:text-indigo-800'
+            }`}
           >
             {isRegister 
               ? '¿Ya tienes una cuenta? Inicia sesión' 
